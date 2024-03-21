@@ -1,8 +1,8 @@
 # biogap-ros2
 ROS2 wrapper for BioGAP. It consists in two ROS nodes:
 
-- the _publisher_ is the actual wrapper for BioGAP: it reads the EMG data packets from a serial port (default: `/dev/ttyACM0`) and publishes them under the `emg` topic;
-- the _receiver_ subscribes to the `emg` topic and dumps the EMG data packets it receives to a UNIX FIFO in `./biogap-ros2/fifo`.
+- the _streamer_ is the actual wrapper for BioGAP: it reads the EMG data packets from a serial port (default: `/dev/ttyACM0`) and publishes them under the `emg` topic;
+- the _dumper_ subscribes to the `emg` topic and dumps the EMG data packets it receives to a UNIX FIFO in `./biogap-ros2/fifo`.
 
 ## Usage
 The project relies on Docker:
