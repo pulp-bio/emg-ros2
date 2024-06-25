@@ -129,7 +129,7 @@ class BioWolf:
         assert self._ser is not None, "Attempting to close a closed serial port."
 
         # Stop command
-        self._ser.write(":")
+        self._ser.write(b":")
 
         # Close serial port
         time.sleep(0.2)
