@@ -22,7 +22,7 @@ from __future__ import annotations
 import os
 
 import rclpy
-from biogap_messages.msg import EMG
+from biowolf16_messages.msg import EMG
 from rcl_interfaces.msg import ParameterDescriptor
 from rclpy.node import Node
 

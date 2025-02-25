@@ -1,5 +1,5 @@
 """
-This module contains the BioGAP-ROS2 interface for sEMG.
+This module contains the BioWolf16-ROS2 interface for sEMG.
 
 
 Copyright 2023 Mattia Orlandi, Pierangelo Maria Rapa
@@ -19,7 +19,7 @@ limitations under the License.
 
 import numpy as np
 
-packetSize: int = 224
+packetSize: int = 320
 """Number of bytes in each package."""
 
 startSeq: list[bytes] = []
@@ -28,7 +28,7 @@ startSeq: list[bytes] = []
 stopSeq: list[bytes] = []
 """Sequence of commands to stop the device."""
 
-sigInfo: dict = {"emg": {"fs": 500, "nCh": 8}}
+sigInfo: dict = {"emg": {"fs": 4000, "nCh": 16}}
 """Dictionary containing the signals information."""
 
 
@@ -48,7 +48,7 @@ def decodeFn(data: bytes) -> dict[str, np.ndarray]:
         the keys must match with those of the "sigInfo" dictionary.
     """
     dataTmp = np.frombuffer(data, dtype=np.float32)
-    nSamp, nCh = 7, 8
+    nSamp, nCh = 5, 16
     sig = dataTmp.reshape(nSamp, nCh)
 
     return {"emg": sig}

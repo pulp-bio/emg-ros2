@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>biogap_messages</name>
+  <name>biowolf16_messages</name>
   <version>0.0.1</version>
-  <description>ROS2 message interface for BioGAP data</description>
+  <description>ROS2 message interface for BioWolf16 EMG data</description>
   <maintainer email="mattia.orlandi21@gmail.com">nihil21</maintainer>
   <license>Apache-2.0</license>
 

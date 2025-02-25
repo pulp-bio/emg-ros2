@@ -1,4 +1,5 @@
-"""BioWolf driver.
+"""
+BioWolf16 driver.
 
 
 Copyright 2024 Mattia Orlandi, Pierangelo Maria Rapa
@@ -26,7 +27,8 @@ import serial
 
 
 def _decode_fn(data: bytes) -> np.ndarray:
-    """Function to decode the binary data received from BioWolf into a single sEMG signal.
+    """
+    Function to decode the binary data received from BioWolf into a single sEMG signal.
 
     Parameters
     ----------
@@ -38,8 +40,7 @@ def _decode_fn(data: bytes) -> np.ndarray:
     ndarray
         EMG packet with shape (nSamp, nCh).
     """
-    n_samp = 5
-    n_ch = 16
+    n_samp, n_ch = 5, 16
 
     # ADC parameters
     v_ref = 2.5
@@ -56,47 +57,47 @@ def _decode_fn(data: bytes) -> np.ndarray:
         prefix = 255 if data_tmp[pos] > 127 else 0
         data_tmp.insert(pos, prefix)
         pos += 4
-    emg = np.asarray(struct.unpack(f">{n_samp * n_ch}i", data_tmp), dtype="int32")
+    emg_adc = np.asarray(
+        struct.unpack(f">{n_samp * n_ch}i", data_tmp), dtype="int32"
+    ).reshape(n_samp, n_ch)
 
     # Reshape and convert ADC readings to uV
-    emg = emg.reshape(n_samp, n_ch)
-    emg = emg * (v_ref / gain / 2**n_bit)  # V
-    emg *= 1_000_000  # uV
-    emg = emg.astype("float32")
+    emg = (emg_adc * v_ref / (gain * (2 ** (n_bit - 1) - 1))).astype("float32")  # V
+    emg *= 1_000  # mV
 
     return emg
 
 
-class BioWolf:
-    """BioWolf driver.
+class BioWolf16:
+    """BioWolf16 driver.
 
     Parameters
     ----------
     serial_port : str
         String representing the serial port.
-    packet_size : int, default=243
-        Size of each packet read from the serial port.
     baud_rate : int, default=4000000
         Baud rate.
+    packet_size : int, default=243
+        Size of each packet read from the serial port.
 
     Attributes
     ----------
     _serial_port : str
         String representing the serial port.
-    _packet_size : int
-        Size of each packet read from the serial port.
     _baud_rate : int
         Baud rate.
+    _packet_size : int
+        Size of each packet read from the serial port.
     _ser : Serial or None
         Serial port object (initialized to None).
     """
 
     def __init__(
-        self, serial_port: str, packet_size: int = 243, baud_rate: int = 4000000
+        self, serial_port: str, baud_rate: int = 4000000, packet_size: int = 243
     ) -> None:
         self._serial_port = serial_port
-        self._packet_size = packet_size
         self._baud_rate = baud_rate
+        self._packet_size = packet_size
 
         self._ser = None
 
