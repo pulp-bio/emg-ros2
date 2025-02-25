@@ -1,4 +1,4 @@
-"""Object that dumps EMG data to a pipe.
+"""Object that logs EMG data to a pipe.
 
 
 Copyright 2024 Mattia Orlandi, Pierangelo Maria Rapa
@@ -26,11 +26,11 @@ from rcl_interfaces.msg import ParameterDescriptor
 from rclpy.node import Node
 
 
-class Dumper(Node):
+class Logger(Node):
 
     def __init__(self) -> None:
 
-        super().__init__("dumper")
+        super().__init__("logger")
         self._emg_subscription = self.create_subscription(
             EMG, "emg", self._emg_callback, 100
         )
@@ -43,30 +43,32 @@ class Dumper(Node):
             ParameterDescriptor(description="Path to the FIFO"),
         )
         self._path = self.get_parameter("fifo_path").get_parameter_value().string_value
+        if os.path.exists(self._path):
+            os.remove(self._path)
         os.mkfifo(self._path)
         self._fifo = open(self._path, "wb")
 
-        self.get_logger().info("Dumper started.")
+        self.get_logger().info("Logger started.")
 
     def _emg_callback(self, msg: EMG) -> None:
         self._fifo.write(msg.data.tobytes())
 
     def __del__(self) -> None:
         os.remove(self._path)
-        self.get_logger().info("Dumper stopped")
+        self.get_logger().info("Logger stopped")
 
 
 def main():
     rclpy.init()
 
-    dumper = Dumper()
+    logger = Logger()
 
     try:
-        rclpy.spin(dumper)
+        rclpy.spin(logger)
     except BrokenPipeError:
-        dumper.get_logger().info("FIFO closed.")
+        logger.get_logger().info("FIFO closed.")
 
-    dumper.destroy_node()
+    logger.destroy_node()
     rclpy.shutdown()
 
 

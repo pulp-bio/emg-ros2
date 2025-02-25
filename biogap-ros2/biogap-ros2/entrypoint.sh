@@ -1,5 +1,6 @@
 #!/bin/bash
 
+
 # Workaround for setuptools
 PYTHONWARNINGS="ignore:setup.py install is deprecated::setuptools.command.install"
 export PYTHONWARNINGS
@@ -10,4 +11,4 @@ colcon build
 
 # Run ROS2 node
 source install/setup.bash
-ros2 run biogap_wrapper $1
+ros2 run biogap_wrapper "$@"

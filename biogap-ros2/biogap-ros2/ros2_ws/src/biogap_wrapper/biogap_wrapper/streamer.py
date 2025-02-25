@@ -24,14 +24,12 @@ from rcl_interfaces.msg import ParameterDescriptor
 from rclpy.node import Node
 
 try:
-    # from biowolf import BioWolf
     from biogap import BioGAP
 except ModuleNotFoundError:
     import sys
 
     sys.path.insert(0, "..")
 
-    # from biowolf import BioWolf
     from biogap import BioGAP
 
 
@@ -44,11 +42,27 @@ class Streamer(Node):
         # Serial port
         self.declare_parameter(
             "serial_port",
-            "/dev/ttyACM0",
+            "",
             ParameterDescriptor(description="Serial port to communicate with BioGAP"),
         )
+        self.declare_parameter(
+            "baud_rate",
+            256000,
+            ParameterDescriptor(description="Baud rate for the serial communication"),
+        )
+        self.declare_parameter(
+            "gain",
+            6,
+            ParameterDescriptor(description="PGA gain of BioGAP"),
+        )
         self._biogap = BioGAP(
-            self.get_parameter("serial_port").get_parameter_value().string_value
+            serial_port=self.get_parameter("serial_port")
+            .get_parameter_value()
+            .string_value,
+            baud_rate=self.get_parameter("baud_rate")
+            .get_parameter_value()
+            .integer_value,
+            gain=self.get_parameter("gain").get_parameter_value().integer_value,
         )
         self._biogap.start()
         self.get_logger().info("Streamer started.")

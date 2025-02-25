@@ -20,7 +20,7 @@ setup(
     entry_points={
         "console_scripts": [
             "streamer = biogap_wrapper.streamer:main",
-            "dumper = biogap_wrapper.dumper:main",
+            "logger = biogap_wrapper.logger:main",
         ],
     },
 )

@@ -1,4 +1,5 @@
-"""BioGAP driver.
+"""
+BioGAP driver.
 
 
 Copyright 2024 Mattia Orlandi, Pierangelo Maria Rapa
@@ -25,25 +26,26 @@ import numpy as np
 import serial
 
 
-def _decode_fn(data: bytes) -> np.ndarray:
-    """Function to decode the binary data received from BioGAP into a single sEMG signal.
+def _decode_fn(data: bytes, gain: int) -> np.ndarray:
+    """
+    Function to decode the binary data received from BioGAP into a single sEMG signal.
 
     Parameters
     ----------
     data : bytes
         A packet of bytes.
+    gain : int
+        PGA gain for the conversion to volts.
 
     Returns
     -------
     ndarray
         EMG packet with shape (nSamp, nCh).
     """
-    n_samp = 7
-    n_ch = 8
+    n_samp, n_ch = 7, 8
 
     # ADC parameters
     v_ref = 2.5
-    gain = 6.0
     n_bit = 24
 
     data_tmp = bytearray(
@@ -61,47 +63,63 @@ def _decode_fn(data: bytes) -> np.ndarray:
         prefix = 255 if data_tmp[pos] > 127 else 0
         data_tmp.insert(pos, prefix)
         pos += 4
-    emg = np.asarray(struct.unpack(f">{n_samp * n_ch}i", data_tmp), dtype="int32")
+    emg_adc = np.asarray(
+        struct.unpack(f">{n_samp * n_ch}i", data_tmp), dtype=np.int32
+    ).reshape(n_samp, n_ch)
 
-    # Reshape and convert ADC readings to uV
-    emg = emg.reshape(n_samp, n_ch)
-    emg = emg * (v_ref / gain / 2**n_bit)  # V
-    emg *= 1_000_000  # uV
-    emg = emg.astype("float32")
+    # Reshape and convert ADC readings to mV
+    emg = (emg_adc * v_ref / (gain * (2 ** (n_bit - 1) - 1))).astype("float32")  # V
+    emg *= 1_000  # mV
 
     return emg
 
 
 class BioGAP:
-    """BioGAP driver.
+    """
+    BioGAP driver.
 
     Parameters
     ----------
     serial_port : str
         String representing the serial port.
-    packet_size : int, default=224
-        Size of each packet read from the serial port.
     baud_rate : int, default=256000
         Baud rate.
+    gain : int, default=6
+        PGA gain for the conversion to volts (available values: 1, 2, 4, 6, 8, 12).
+    packet_size : int, default=224
+        Size of each packet read from the serial port.
 
     Attributes
     ----------
     _serial_port : str
         String representing the serial port.
-    _packet_size : int
-        Size of each packet read from the serial port.
     _baud_rate : int
         Baud rate.
+    _packet_size : int
+        Size of each packet read from the serial port.
     _ser : Serial or None
         Serial port object (initialized to None).
     """
 
     def __init__(
-        self, serial_port: str, packet_size: int = 234, baud_rate: int = 256000
+        self,
+        serial_port: str,
+        baud_rate: int = 256000,
+        gain: int = 6,
+        packet_size: int = 234,
     ) -> None:
+        assert gain in (
+            1,
+            2,
+            4,
+            6,
+            8,
+            12,
+        ), f'The "gain" parameter can be either 1, 2, 4, 6, 8, 12; {gain} was passed.'
         self._serial_port = serial_port
-        self._packet_size = packet_size
         self._baud_rate = baud_rate
+        self._gain = gain
+        self._packet_size = packet_size
 
         self._ser = None
 
@@ -111,10 +129,18 @@ class BioGAP:
         self._ser = serial.Serial(self._serial_port, self._baud_rate, timeout=5)
 
         # Start command sequence
+        gain_cmd_map = {
+            1: 16,
+            2: 32,
+            4: 64,
+            6: 0,
+            8: 80,
+            12: 96,
+        }
         self._ser.write(bytes([20, 1, 50]))
         time.sleep(0.2)
         self._ser.write((18).to_bytes(length=1, byteorder="big"))
-        params = [6, 0, 1, 4, 0, 13, 10]
+        params = [6, 0, 1, 4, gain_cmd_map[self._gain], 13, 10]
         self._ser.write(bytes(params))
 
     def get_emg(self) -> np.ndarray:
@@ -129,7 +155,7 @@ class BioGAP:
 
         # Read data from serial port and decode it
         data = self._ser.read(self._packet_size)
-        emg = _decode_fn(data)
+        emg = _decode_fn(data, self._gain)
 
         return emg
 
