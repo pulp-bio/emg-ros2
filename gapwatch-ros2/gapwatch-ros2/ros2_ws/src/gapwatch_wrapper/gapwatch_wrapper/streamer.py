@@ -1,4 +1,5 @@
-"""ROS2 wrapper for GAPWatch.
+"""
+ROS2 wrapper for GAPWatch.
 
 
 Copyright 2024 Mattia Orlandi, Pierangelo Maria Rapa
@@ -49,16 +50,20 @@ class Streamer(Node):
             socket_port=self.get_parameter("socket_port")
             .get_parameter_value()
             .integer_value,
+            logger=self.get_logger(),
         )
         self._gapwatch.start()
         self.get_logger().info("Streamer started.")
 
     def publish_emg(self) -> None:
-        data = self._gapwatch.get_emg()
-        emg = EMG()
-        emg.data = data.flatten()
+        emg, battery, counter, ts = self._gapwatch.get_emg()
+        emg_msg = EMG()
+        emg_msg.emg = emg.flatten()
+        emg_msg.battery = battery.flatten()
+        emg_msg.counter = counter.flatten()
+        emg_msg.ts = ts.flatten()
 
-        self._emg_publisher.publish(emg)
+        self._emg_publisher.publish(emg_msg)
 
     def __del__(self) -> None:
         self._gapwatch.stop()

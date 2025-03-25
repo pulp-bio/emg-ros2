@@ -25,7 +25,10 @@ import struct
 import numpy as np
 
 
-def _decode_fn(data: bytes) -> np.ndarray:
+BUFF_SIZE = 1
+
+
+def _decode_fn(data: bytes) -> tuple[np.ndarray, ...]:
     """
     Function to decode the binary data received from GAPWatch into a single sEMG signal.
 
@@ -39,29 +42,51 @@ def _decode_fn(data: bytes) -> np.ndarray:
     ndarray
         EMG packet with shape (nSamp, nCh).
     """
-    n_samp, n_ch = 15, 16
+    nSampEMG, nChEMG = 5 * BUFF_SIZE, 16
+    nSampBat = nSampCounter = nSampTs = 1 * BUFF_SIZE
 
     # ADC parameters
-    v_ref = 4
+    vRef = 4
     gain = 6
-    n_bit = 24
+    nBit = 24
 
-    data_tmp = bytearray(data)
+    dataEMG = bytearray()
+    dataBat = bytearray()
+    dataCounter = bytearray()
+    dataTs = bytearray()
+    for i in range(BUFF_SIZE):
+        dataEMG.extend(bytearray(data[i * 252 : i * 252 + 240]))
+        dataBat.extend(bytearray(data[i * 252 + 240 : i * 252 + 241]))
+        dataCounter.extend(bytearray(data[i * 252 + 241 : i * 252 + 243]))
+        dataTs.extend(bytearray(data[i * 252 + 244 : i * 252 + 252]))
+
     # Convert 24-bit to 32-bit integer
     pos = 0
-    for _ in range(len(data_tmp) // 3):
-        prefix = 255 if data_tmp[pos] > 127 else 0
-        data_tmp.insert(pos, prefix)
+    for _ in range(len(dataEMG) // 3):
+        prefix = 255 if dataEMG[pos] > 127 else 0
+        dataEMG.insert(pos, prefix)
         pos += 4
-    emg_adc = np.asarray(
-        struct.unpack(f">{n_samp * n_ch}i", data_tmp), dtype=np.int32
-    ).reshape(n_samp, n_ch)
+    emgADC = np.asarray(
+        struct.unpack(f">{nSampEMG * nChEMG}i", dataEMG), dtype=np.int32
+    ).reshape(nSampEMG, nChEMG)
 
     # ADC readings to mV
-    emg = (emg_adc * v_ref / (gain * (2 ** (n_bit - 1) - 1))).astype(np.float32)  # V
+    emg = emgADC * vRef / (gain * (2 ** (nBit - 1) - 1))  # V
     emg *= 1_000  # mV
+    emg = emg.astype(np.float32)
 
-    return emg
+    # Read battery and packet counter
+    battery = np.asarray(
+        struct.unpack(f"<{nSampBat}B", dataBat), dtype=np.uint8
+    ).reshape(nSampBat, 1)
+    counter = np.asarray(
+        struct.unpack(f">{nSampCounter}H", dataCounter), dtype=np.uint8
+    ).reshape(nSampCounter, 1)
+    ts = np.asarray(
+        struct.unpack(f"<{nSampTs}Q", dataTs), dtype=np.uint64
+    ).reshape(nSampTs, 1)
+
+    return emg, battery, counter, ts
 
 
 class GAPWatch:
@@ -72,7 +97,7 @@ class GAPWatch:
     ----------
     socket_port : int
         Socket port.
-    packet_size : int, default=720
+    packet_size : int, default=252 * BUFF_SIZE
         Size of each packet read from the socket.
 
     Attributes
@@ -81,9 +106,10 @@ class GAPWatch:
         Size of each packet read from the serial port.
     """
 
-    def __init__(self, socket_port: int, packet_size: int = 720) -> None:
+    def __init__(self, socket_port: int, packet_size: int = 252 * BUFF_SIZE, logger = None) -> None:
         self._socket_port = socket_port
         self._packet_size = packet_size
+        self._logger = logger
         self._sock = None
         self._conn = None
 
@@ -99,7 +125,7 @@ class GAPWatch:
         # Start command sequence
         self._conn.sendall(b"=")
 
-    def get_emg(self) -> np.ndarray:
+    def get_emg(self) -> tuple[np.ndarray, ...]:
         """Read a packet of EMG data.
 
         Returns
@@ -117,9 +143,8 @@ class GAPWatch:
         while pos < self._packet_size:
             nRead = self._conn.recv_into(memoryview(data)[pos:])
             pos += nRead
-        emg = _decode_fn(data)
 
-        return emg
+        return _decode_fn(data)
 
     def stop(self) -> None:
         """Stop transmission."""

@@ -19,7 +19,7 @@ limitations under the License.
 
 import numpy as np
 
-packetSize: int = 960
+packetSize: int = 330
 """Number of bytes in each package."""
 
 startSeq: list[bytes] = []
@@ -28,7 +28,12 @@ startSeq: list[bytes] = []
 stopSeq: list[bytes] = []
 """Sequence of commands to stop the device."""
 
-sigInfo: dict = {"emg": {"fs": 4000, "nCh": 16}}
+sigInfo: dict = {
+    "emg": {"fs": 2000, "nCh": 16},
+    "battery": {"fs": 400, "nCh": 1},
+    "counter": {"fs": 400, "nCh": 1},
+    "ts": {"fs": 400, "nCh": 1},
+}
 """Dictionary containing the signals information."""
 
 
@@ -47,8 +52,9 @@ def decodeFn(data: bytes) -> dict[str, np.ndarray]:
         Dictionary containing the signal data packets, each with shape (nSamp, nCh);
         the keys must match with those of the "sigInfo" dictionary.
     """
-    dataTmp = np.frombuffer(data, dtype=np.float32)
-    nSamp, nCh = 15, 16
-    sig = dataTmp.reshape(nSamp, nCh)
+    emg = np.frombuffer(data[:320], dtype=np.float32).reshape(5, 16)
+    battery = np.frombuffer(data[320:321], dtype=np.uint8).reshape(1, 1)
+    counter = np.frombuffer(data[321:322], dtype=np.uint8).reshape(1, 1)
+    ts = np.frombuffer(data[322:], dtype=np.uint64).reshape(1, 1)
 
-    return {"emg": sig}
+    return {"emg": emg, "battery": battery, "counter": counter, "ts": ts}

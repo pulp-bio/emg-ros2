@@ -52,7 +52,10 @@ class Logger(Node):
         self.get_logger().info("Logger started.")
 
     def _emg_callback(self, msg: EMG) -> None:
-        self._fifo.write(msg.data.tobytes())
+        self._fifo.write(msg.emg.tobytes())
+        self._fifo.write(msg.battery.tobytes())
+        self._fifo.write(msg.counter.tobytes())
+        self._fifo.write(msg.ts.tobytes())
 
     def __del__(self) -> None:
         os.remove(self._path)
