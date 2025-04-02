@@ -1,5 +1,5 @@
 """
-Object that logs EMG data to a pipe.
+Object that logs EMG data to a TCP socket.
 
 
 Copyright 2024 Mattia Orlandi, Pierangelo Maria Rapa
@@ -20,6 +20,8 @@ limitations under the License.
 from __future__ import annotations
 
 import os
+import socket
+import time
 
 import rclpy
 from gapwatch_messages.msg import EMG
@@ -37,29 +39,41 @@ class Logger(Node):
         )
         self._emg_subscription
 
-        # Open FIFO
+        # Open socket
         self.declare_parameter(
-            "fifo_path",
-            "/root/shared/fifo",
-            ParameterDescriptor(description="Path to the FIFO"),
+            "server_addr",
+            "172.17.0.1",
+            ParameterDescriptor(description="Server address"),
         )
-        self._path = self.get_parameter("fifo_path").get_parameter_value().string_value
-        if os.path.exists(self._path):
-            os.remove(self._path)
-        os.mkfifo(self._path)
-        self._fifo = open(self._path, "wb")
+        self.declare_parameter(
+            "server_port",
+            3334,
+            ParameterDescriptor(description="Server port"),
+        )
+        addr = self.get_parameter("server_addr").get_parameter_value().string_value
+        port = self.get_parameter("server_port").get_parameter_value().integer_value
+
+        self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        while True:
+            try:
+                self._sock.connect((addr, port))
+                break
+            except ConnectionRefusedError:
+                self.get_logger().info("Connection refused, retrying in a second...")
+                time.sleep(1)
+        self.get_logger().info(f"Connected to server at {addr}:{port}.")
 
         self.get_logger().info("Logger started.")
 
     def _emg_callback(self, msg: EMG) -> None:
-        self._fifo.write(msg.emg.tobytes())
-        self._fifo.write(msg.battery.tobytes())
-        self._fifo.write(msg.counter.tobytes())
-        self._fifo.write(msg.ts.tobytes())
+        self._sock.sendall(msg.emg.tobytes())
+        self._sock.sendall(msg.battery.tobytes())
+        self._sock.sendall(msg.counter.tobytes())
+        self._sock.sendall(msg.ts.tobytes())
 
     def __del__(self) -> None:
-        os.remove(self._path)
-        self.get_logger().info("Logger stopped")
+        self._sock.close()
+        self.get_logger().info("Logger stopped.")
 
 
 def main():
@@ -69,8 +83,8 @@ def main():
 
     try:
         rclpy.spin(logger)
-    except BrokenPipeError:
-        logger.get_logger().info("FIFO closed.")
+    except Exception:
+        logger.get_logger().info("Exiting main loop...")
 
     logger.destroy_node()
     rclpy.shutdown()

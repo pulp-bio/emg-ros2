@@ -19,7 +19,10 @@ limitations under the License.
 
 import numpy as np
 
-packetSize: int = 330
+
+BUFF_SIZE = 20
+
+packetSize: int = 330 * BUFF_SIZE
 """Number of bytes in each package."""
 
 startSeq: list[bytes] = []
@@ -52,9 +55,19 @@ def decodeFn(data: bytes) -> dict[str, np.ndarray]:
         Dictionary containing the signal data packets, each with shape (nSamp, nCh);
         the keys must match with those of the "sigInfo" dictionary.
     """
-    emg = np.frombuffer(data[:320], dtype=np.float32).reshape(5, 16)
-    battery = np.frombuffer(data[320:321], dtype=np.uint8).reshape(1, 1)
-    counter = np.frombuffer(data[321:322], dtype=np.uint8).reshape(1, 1)
-    ts = np.frombuffer(data[322:], dtype=np.uint64).reshape(1, 1)
+    data_emg = bytearray()
+    data_bat = bytearray()
+    data_counter = bytearray()
+    data_ts = bytearray()
+    for i in range(BUFF_SIZE):
+        data_emg.extend(bytearray(data[i * 330 : i * 330 + 320]))
+        data_bat.extend(bytearray(data[i * 330 + 320 : i * 330 + 321]))
+        data_counter.extend(bytearray(data[i * 330 + 321 : i * 330 + 322]))
+        data_ts.extend(bytearray(data[i * 330 + 322 : i * 330 + 330]))
+
+    emg = np.frombuffer(data_emg, dtype=np.float32).reshape(5 * BUFF_SIZE, 16)
+    battery = np.frombuffer(data_bat, dtype=np.uint8).reshape(BUFF_SIZE, 1)
+    counter = np.frombuffer(data_counter, dtype=np.uint8).reshape(BUFF_SIZE, 1)
+    ts = np.frombuffer(data_ts, dtype=np.uint64).reshape(BUFF_SIZE, 1)
 
     return {"emg": emg, "battery": battery, "counter": counter, "ts": ts}
