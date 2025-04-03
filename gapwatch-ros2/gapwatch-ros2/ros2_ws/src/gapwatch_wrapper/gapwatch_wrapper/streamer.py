@@ -53,7 +53,7 @@ class Streamer(Node):
             logger=self.get_logger(),
         )
         self._gapwatch.start()
-        self.get_logger().info("Streamer started.")
+        self.timer = self.create_timer(0.0025, self.publish_emg)
 
     def publish_emg(self) -> None:
         emg, battery, counter, ts = self._gapwatch.get_emg()
@@ -67,20 +67,26 @@ class Streamer(Node):
 
     def __del__(self) -> None:
         self._gapwatch.stop()
-        self.get_logger().info("Streamer stopped.")
 
 
 def main():
-    # Initialization
     rclpy.init()
-    streamer = Streamer()
 
-    while rclpy.ok():
-        streamer.publish_emg()
+    try:
+        streamer = Streamer()
 
-    # Shutdown
-    streamer.destroy_node()
-    rclpy.shutdown()
+        # while rclpy.ok():
+        #    streamer.publish_emg()
+        rclpy.spin(streamer)
+    except KeyboardInterrupt:
+        print("Manual shutdown.")
+    except Exception as e:
+        print(f"Exception {e} occurred.")
+    finally:
+        # Shutdown
+        if rclpy.ok():
+            streamer.destroy_node()
+            rclpy.shutdown()
 
 
 if __name__ == "__main__":

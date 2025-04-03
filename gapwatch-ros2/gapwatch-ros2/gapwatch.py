@@ -43,7 +43,7 @@ def _decode_fn(data: bytes) -> tuple[np.ndarray, ...]:
         EMG packet with shape (nSamp, nCh).
     """
     nSampEMG, nChEMG = 5 * BUFF_SIZE, 16
-    nSampBat = nSampCounter = nSampTs = 1 * BUFF_SIZE
+    nSampBat = nSampCounter = nSampTs = BUFF_SIZE
 
     # ADC parameters
     vRef = 4
@@ -82,9 +82,9 @@ def _decode_fn(data: bytes) -> tuple[np.ndarray, ...]:
     counter = np.asarray(
         struct.unpack(f">{nSampCounter}H", dataCounter), dtype=np.uint8
     ).reshape(nSampCounter, 1)
-    ts = np.asarray(
-        struct.unpack(f"<{nSampTs}Q", dataTs), dtype=np.uint64
-    ).reshape(nSampTs, 1)
+    ts = np.asarray(struct.unpack(f"<{nSampTs}Q", dataTs), dtype=np.uint64).reshape(
+        nSampTs, 1
+    )
 
     return emg, battery, counter, ts
 
@@ -106,7 +106,9 @@ class GAPWatch:
         Size of each packet read from the serial port.
     """
 
-    def __init__(self, socket_port: int, packet_size: int = 252 * BUFF_SIZE, logger = None) -> None:
+    def __init__(
+        self, socket_port: int, packet_size: int = 252 * BUFF_SIZE, logger=None
+    ) -> None:
         self._socket_port = socket_port
         self._packet_size = packet_size
         self._logger = logger
@@ -120,7 +122,12 @@ class GAPWatch:
         self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self._sock.bind(("", self._socket_port))
         self._sock.listen()
-        self._conn, _ = self._sock.accept()
+
+        self._logger.info(f"Waiting for TCP connection on port {self._socket_port}.")
+
+        self._conn, (addr, _) = self._sock.accept()
+
+        self._logger.info(f"New TCP connection with {addr}:{self._socket_port}")
 
         # Start command sequence
         self._conn.sendall(b"=")
@@ -148,9 +155,8 @@ class GAPWatch:
 
     def stop(self) -> None:
         """Stop transmission."""
-        assert (
-            self._sock is not None and self._conn is not None
-        ), "Attempting to close a closed socket."
+        if self._sock is None or self._conn is None:
+            return
 
         # Stop command
         self._conn.sendall(b":")

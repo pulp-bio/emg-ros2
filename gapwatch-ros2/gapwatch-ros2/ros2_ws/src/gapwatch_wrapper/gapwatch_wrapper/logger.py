@@ -19,7 +19,6 @@ limitations under the License.
 
 from __future__ import annotations
 
-import os
 import socket
 import time
 
@@ -63,8 +62,6 @@ class Logger(Node):
                 time.sleep(1)
         self.get_logger().info(f"Connected to server at {addr}:{port}.")
 
-        self.get_logger().info("Logger started.")
-
     def _emg_callback(self, msg: EMG) -> None:
         self._sock.sendall(msg.emg.tobytes())
         self._sock.sendall(msg.battery.tobytes())
@@ -73,21 +70,23 @@ class Logger(Node):
 
     def __del__(self) -> None:
         self._sock.close()
-        self.get_logger().info("Logger stopped.")
 
 
 def main():
     rclpy.init()
-
     logger = Logger()
 
     try:
         rclpy.spin(logger)
-    except Exception:
-        logger.get_logger().info("Exiting main loop...")
-
-    logger.destroy_node()
-    rclpy.shutdown()
+    except KeyboardInterrupt:
+        print("Manual shutdown.")
+    except BrokenPipeError:
+        print("Connection closed by server.")
+    finally:
+        # Shutdown
+        if rclpy.ok():
+            logger.destroy_node()
+            rclpy.shutdown()
 
 
 if __name__ == "__main__":
