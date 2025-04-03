@@ -75,8 +75,6 @@ def main():
     try:
         streamer = Streamer()
 
-        # while rclpy.ok():
-        #    streamer.publish_emg()
         rclpy.spin(streamer)
     except KeyboardInterrupt:
         print("Manual shutdown.")
