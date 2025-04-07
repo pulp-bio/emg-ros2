@@ -13,7 +13,13 @@ The project relies on Docker:
 
 One can then read the EMG data stream from the _logger_'s TCP: for instance, to stream the data to the [BioGUI](https://github.com/pulp-bio/biogui), the [`interface_gapwatch_ros1.py`](https://github.com/pulp-bio/emg-ros2/blob/main/gapwatch-ros1/interface_gapwatch_ros1.py) interface file is provided.
 
-To configure the GAPWatch when it is switched on, one can open the [`ble.html`](https://github.com/pulp-bio/emg-ros2/blob/main/gapwatch-ros1/ble.html) file with a WebBLE-compatible web browser (e.g., Chrome/Chromium).
+To configure the GAPWatch when it is switched on, one can open the [`ble.html`](https://github.com/pulp-bio/emg-ros2/blob/main/gapwatch-ros1/ble.html) file with a WebBLE-compatible web browser (e.g., Chrome/Chromium), select the `Nordic` device, and specify:
+
+- the SSID of the Wi-Fi network;
+- the password of the Wi-Fi network;
+- the IP address where the `streamer` ROS node is running;
+- the port to which the `streamer` ROS node is listening;
+- lastly, the timestamp.
 
 ## Author
 - [Mattia Orlandi](https://www.unibo.it/sitoweb/mattia.orlandi/en)
