@@ -1,0 +1,5 @@
+<launch>
+    <node pkg="gapwatch_streamer" type="streamer.py" name="streamer" output="screen">
+        <param name="socket_port" value="3333"/>
+    </node>
+</launch>
