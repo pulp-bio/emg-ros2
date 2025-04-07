@@ -5,6 +5,12 @@ ROS1 wrapper for GAPWatch. It consists in two ROS nodes:
 - the _logger_ subscribes to the `emg` topic and re-transmits the EMG data packets it receives via TCP.
 
 ## Usage
+After switching on the GAPWatch, it must be configured by opening the [`ble.html`](https://github.com/pulp-bio/emg-ros2/blob/main/gapwatch-ros1/ble.html) file with a WebBLE-compatible web browser (e.g., Chrome/Chromium), selecting the `Nordic` device, and specifying:
+
+- the SSID and password of the Wi-Fi network;
+- the IP address and port where the _streamer_ ROS node is listening;
+- lastly, the timestamp.
+
 The project relies on Docker:
 
 - first, build the image with `docker build --rm -t gapwatch-ros1:noetic .`;
@@ -12,14 +18,6 @@ The project relies on Docker:
 - to log the data via TCP, launch the _logger_ with `docker run --rm -it --net=host gapwatch-ros1:noetic gapwatch_logger logger.py _server_addr:=<SERVER_ADDR> _server_port:=>SERVER_PORT>` (by default, the server address is 172.17.0.1 and the server port is 3334).
 
 One can then read the EMG data stream from the _logger_'s TCP: for instance, to stream the data to the [BioGUI](https://github.com/pulp-bio/biogui), the [`interface_gapwatch_ros1.py`](https://github.com/pulp-bio/emg-ros2/blob/main/gapwatch-ros1/interface_gapwatch_ros1.py) interface file is provided.
-
-To configure the GAPWatch when it is switched on, one can open the [`ble.html`](https://github.com/pulp-bio/emg-ros2/blob/main/gapwatch-ros1/ble.html) file with a WebBLE-compatible web browser (e.g., Chrome/Chromium), select the `Nordic` device, and specify:
-
-- the SSID of the Wi-Fi network;
-- the password of the Wi-Fi network;
-- the IP address where the `streamer` ROS node is running;
-- the port to which the `streamer` ROS node is listening;
-- lastly, the timestamp.
 
 ## Author
 - [Mattia Orlandi](https://www.unibo.it/sitoweb/mattia.orlandi/en)
