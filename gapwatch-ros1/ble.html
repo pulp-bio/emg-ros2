@@ -36,14 +36,21 @@
     </div>
 
     <div id="connectedForm" style="display: none">
-        <div id="messageForm">
+        <div id="messageForm" style="display: none">
             <textarea id="message" placeholder="Command text"></textarea>
             <button onclick="sendMessage()">Send</button>
         </div>
 
         <!-- A simple button to send the current date/time (UTC + microseconds) -->
-        <div>
+        <div style="display: none">
             <button onclick="sendCurrentDateTime()">Send Date/Time</button>
+        </div>
+
+        <!-- New UI: we can either prompt for config step-by-step or load from a JSON file -->
+        <div style="margin-top: 1em;">
+            <button onclick="askForConfiguration()">Ask Config (Manual)</button>
+            <button onclick="document.getElementById('fileInput').click()">Load Config (JSON)</button>
+            <input type="file" id="fileInput" style="display:none" accept=".json" onchange="onConfigFileSelected()" />
         </div>
 
         <div id="log"></div>
@@ -65,7 +72,6 @@
 
         // Added: Send on Enter (but allow Shift+Enter for multiline)
         messageEl.addEventListener("keydown", function (event) {
-            // If Enter is pressed without Shift, send the message
             if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
                 sendMessage();
@@ -81,6 +87,11 @@
             el.innerText = text;
             el.style.color = color || "white";
             logEl.prepend(el);
+        }
+
+        // A simple async delay helper
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
         }
 
         // Called when 'Connect' button is clicked
@@ -138,12 +149,13 @@
             consoleWrite("Device disconnected.", "grey");
         }
 
-        // Send data from the textarea
+        // Send data from the textarea (or from a string you pass in)
         async function sendMessage(msg) {
             if (!characteristic_A) return;
+            // If msg is undefined, read from the textarea
             const text = (msg ?? messageEl.value).replace(/\r?\n/g, "\r\n") + "\r\n";
             const arrayBuffe = new TextEncoder().encode(text);
-            messageEl.value = "";
+            if (!msg) messageEl.value = "";
             consoleWrite("Sent: " + text.trim(), "#8787FF");
             try {
                 for (let i = 0; i < arrayBuffe.length; i += BLE_MTU) {
@@ -168,12 +180,10 @@
             const minutes = String(now.getUTCMinutes()).padStart(2, '0');
             const seconds = String(now.getUTCSeconds()).padStart(2, '0');
 
-            // Get milliseconds, then multiply by 1000 to get microseconds.
-            // Convert to a 6-digit string by .padStart(6, '0')
+            // Convert milliseconds to microseconds
             const microseconds = String(now.getUTCMilliseconds() * 1000).padStart(6, '0');
 
-            // Construct final string in the format:
-            // YYYY-MM-DD HH:MM:SS.mmmmmmu UTC
+            // Construct final string
             const datetimeString =
                 `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${microseconds}`;
 
@@ -202,6 +212,95 @@
                 consoleWrite(error.stack, "#FF878D");
                 consoleWrite(error.name + ': ' + error.message, "#FF878D");
             }
+        }
+
+        // --------------------------------------------------------------
+        // 1) Manual approach: Step-by-step prompts for SSID, Password, IP, Port
+        //    then automatically sends date/time with a delay at each step
+        async function askForConfiguration() {
+            if (!characteristic_A) {
+                consoleWrite("Not connected, cannot send config!", "#FF878D");
+                return;
+            }
+
+            const ssid = prompt("Enter SSID:");
+            if (!ssid) return;
+            sendMessage(ssid);
+            await sleep(500);
+
+            const password = prompt("Enter Password:");
+            if (!password) return;
+            sendMessage(password);
+            await sleep(500);
+
+            const ipAddr = prompt("Enter IP address:");
+            if (!ipAddr) return;
+            sendMessage(ipAddr);
+            await sleep(500);
+
+            const port = prompt("Enter Port:");
+            if (!port) return;
+            sendMessage(port);
+            await sleep(500);
+
+            // Finally, send date/time using the existing function
+            sendCurrentDateTime();
+            await sleep(500);
+
+            consoleWrite("Finished sending manual configuration!", "grey");
+        }
+
+        // --------------------------------------------------------------
+        // 2) JSON approach: The user can pick a JSON file with fields
+        //    like { "ssid":"myssid", "password":"mypass", "ip":"1.2.3.4", "port":"9999" }
+        //    Then we automatically send them with a delay
+        function onConfigFileSelected() {
+            const fileInput = document.getElementById("fileInput");
+            if (!fileInput.files || !fileInput.files[0]) return;
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            reader.onload = async function (e) {
+                try {
+                    const text = e.target.result;
+                    const config = JSON.parse(text);
+                    consoleWrite("Loaded config from JSON file.", "grey");
+                    await sendConfigWithDelay(config);
+                } catch (err) {
+                    consoleWrite("Error reading JSON: " + err, "#FF878D");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        async function sendConfigWithDelay(config) {
+            if (!characteristic_A) {
+                consoleWrite("Not connected, cannot send config!", "#FF878D");
+                return;
+            }
+
+            if (config.ssid) {
+                sendMessage(config.ssid);
+                await sleep(500);
+            }
+            if (config.password) {
+                sendMessage(config.password);
+                await sleep(500);
+            }
+            if (config.ip) {
+                sendMessage(config.ip);
+                await sleep(500);
+            }
+            if (config.port) {
+                sendMessage(config.port);
+                await sleep(500);
+            }
+
+            // Finally send date/time
+            sendCurrentDateTime();
+            await sleep(500);
+
+            consoleWrite("Finished sending config from JSON!", "grey");
         }
     </script>
 </body>

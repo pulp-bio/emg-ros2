@@ -8,7 +8,7 @@ project(gapwatch_logger)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  gapwatch_wrapper
+  gapwatch_logger
   rospy
 )
 
@@ -104,7 +104,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES gapwatch_logger
-#  CATKIN_DEPENDS gapwatch_wrapper rospy
+#  CATKIN_DEPENDS gapwatch_logger rospy
 #  DEPENDS system_lib
 )
 
