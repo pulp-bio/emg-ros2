@@ -4,10 +4,31 @@ from __future__ import annotations
 
 import socket
 import struct
+import time
 
 import numpy as np
 import rospy
 from gapwatch_streamer.msg import EMG
+
+
+FS_MAP = {
+    500: 0x06,
+    1000: 0x05,
+    2000: 0x04,
+    4000: 0x03,
+}
+
+GAIN_MAP = {
+    6: 0x00,
+    1: 0x10,
+    2: 0x20,
+    3: 0x30,
+    4: 0x40,
+    8: 0x50,
+    12: 0x60,
+}
+
+CH_ORDER = np.asarray([0, 1, 12, 13, 2, 3, 4, 5, 10, 11, 8, 9, 14, 15, 6, 7])
 
 
 def _decode_fn(data: bytes) -> tuple[np.ndarray, int, int, int]:
@@ -76,6 +97,12 @@ class GAPWatch:
         Socket port.
     packet_size : int, default=252
         Size of each packet read from the socket.
+    fs : int, default=2000
+        Sampling rate.
+    gain : int, default=6
+        Gain of the PGA.
+    test_mode : bool, default=False
+        Whether the ADS is in test mode (square waves) or not.
 
     Attributes
     ----------
@@ -89,9 +116,19 @@ class GAPWatch:
         Client socket object.
     """
 
-    def __init__(self, socket_port: int, packet_size: int = 252) -> None:
+    def __init__(
+            self,
+            socket_port: int,
+            packet_size: int = 252,
+            fs: int = 2000,
+            gain: int = 6,
+            test_mode: bool = False
+    ) -> None:
         self._socket_port = socket_port
         self._packet_size = packet_size
+        self._fs = fs
+        self._gain = gain
+        self._test_mode = test_mode
         self._sock = None
         self._conn = None
 
@@ -114,6 +151,10 @@ class GAPWatch:
                 rospy.loginfo(f"New TCP connection with {addr}:{self._socket_port}")
 
                 # Start command sequence
+                self._conn.sendall(
+                        bytes([0xAA, 3, FS_MAP[self._fs], GAIN_MAP[self._gain] | (0x05 if self._test_mode else 0x00), 1])
+                )
+                time.sleep(1.0)
                 self._conn.sendall(b"=")
                 break
             except socket.timeout:
@@ -162,7 +203,9 @@ def main():
 
     # GAPWatch driver
     socket_port = rospy.get_param("~socket_port", 3333)
-    gapwatch = GAPWatch(socket_port)
+    fs = rospy.get_param("~fs", 2000)
+    test_mode = rospy.get_param("~test_mode", False)
+    gapwatch = GAPWatch(socket_port=socket_port, fs=fs, test_mode=test_mode)
     pub = rospy.Publisher("emg", EMG, queue_size=10)
     rate = rospy.Rate(400)  # 400 Hz
 

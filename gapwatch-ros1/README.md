@@ -14,7 +14,7 @@ After switching on the GAPWatch, it must be configured by opening the [`ble.html
 The project relies on Docker:
 
 - first, build the image with `docker build --rm -t gapwatch-ros1:noetic .`;
-- then, launch the _streamer_ with `docker run --rm -it --net=host gapwatch-ros1:noetic gapwatch_streamer streamer.py _socket_port:=<SOCKET_PORT>` (by default, the socket port is 3333);
+- then, launch the _streamer_ with `docker run --rm -it --net=host gapwatch-ros1:noetic gapwatch_streamer streamer.py _socket_port:=<SOCKET_PORT> _fs:=<FS> _test_mode:=<TEST_MODE>` (by default, the socket port is 3333, the sampling rate is 2000, and the test mode is set to false);
 - to log the data via TCP, launch the _logger_ with `docker run --rm -it --net=host gapwatch-ros1:noetic gapwatch_logger logger.py _server_addr:=<SERVER_ADDR> _server_port:=>SERVER_PORT>` (by default, the server address is 172.17.0.1 and the server port is 3334).
 
 One can then read the EMG data stream from the _logger_'s TCP: for instance, to stream the data to the [BioGUI](https://github.com/pulp-bio/biogui), the [`interface_gapwatch_ros1.py`](https://github.com/pulp-bio/emg-ros2/blob/main/gapwatch-ros1/interface_gapwatch_ros1.py) interface file is provided.
